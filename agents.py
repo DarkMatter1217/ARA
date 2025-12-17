@@ -9,6 +9,41 @@ from prompts import (
 from tools import vector_search
 import re
 
+def classify_source_quality(url: str) -> tuple[str, str]:
+    """
+    Classifies evidence source quality based on URL heuristics.
+    Returns (quality_level, explanation).
+    """
+
+    u = url.lower()
+
+    # High-quality academic sources
+    if any(domain in u for domain in [
+        "arxiv.org",
+        "openreview.net",
+        "aclweb.org",
+        "ieee.org",
+        "springer.com",
+        "sciencedirect.com",
+        "nature.com",
+        "acm.org",
+        "jstor.org",
+        "pubmed.ncbi.nlm.nih.gov",
+    ]):
+        return "HIGH", "Peer-reviewed / academic source"
+
+    # Medium-quality institutional sources
+    if any(domain in u for domain in [
+        ".edu",
+        ".gov",
+        "who.int",
+        "nih.gov",
+        "nasa.gov",
+    ]):
+        return "MEDIUM", "Institutional or government source"
+
+    # Low-quality sources
+    return "LOW", "Non-peer-reviewed or informal source"
 
 import re
 
@@ -149,11 +184,22 @@ def verify_claims_agent(claims: List[str]) -> List[dict]:
                 clean_sources.append(c)
             elif isinstance(c, dict) and "url" in c:
                 clean_sources.append(c["url"])
+        enriched_sources = []
+
+        for src in clean_sources:
+            quality, reason = classify_source_quality(src)
+            enriched_sources.append({
+                "url": src,
+                "quality": quality,
+                "reason": reason,
+            })
+
         results.append({
             "claim": claim,
-            "sources": citations,
+            "sources": enriched_sources,
             "verdict": verdict
         })
+
 
     formatted = []
 
