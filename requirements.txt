@@ -1,0 +1,17 @@
+# Core UI
+chainlit>=1.0.0
+
+# LangGraph + LangChain
+langgraph>=0.0.40
+langchain>=0.2.0
+langchain-google-genai>=1.0.0
+
+# Embeddings & Vector Store
+sentence-transformers>=3.0.1
+faiss-cpu>=1.8.0
+
+# PDF Processing
+pdfplumber>=0.10.0
+
+# Utilities
+python-dotenv>=1.0.1

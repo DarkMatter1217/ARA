@@ -1,0 +1,5 @@
+/* Disable outer page scrolling */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}

@@ -1,0 +1,164 @@
+from typing import List
+from llm import get_llm
+from prompts import (
+    CHAT_PROMPT,
+    SUMMARY_PROMPT,
+    CLAIM_EXTRACTION_PROMPT,
+    EXTERNAL_VERIFICATION_PROMPT,
+)
+from tools import vector_search
+import re
+
+
+import re
+
+def latex_to_plain_math(text: str) -> str:
+    """
+    Converts common LaTeX math into readable plain-text math
+    that renders correctly in Chainlit.
+    """
+
+    replacements = {
+        r"\\log": "log",
+        r"\\alpha": "alpha",
+        r"\\beta": "beta",
+        r"\\delta": "delta",
+        r"\\times": "*",
+        r"\\cdot": "*",
+        r"\^\{([^}]+)\}": r"^\1",
+        r"_\{([^}]+)\}": r"_\1",
+        r"\\frac\{([^}]+)\}\{([^}]+)\}": r"\1 / \2",
+        r"\\text\{([^}]+)\}": r"\1",
+    }
+
+    for pattern, repl in replacements.items():
+        text = re.sub(pattern, repl, text)
+
+    return text
+
+def normalize_output_for_chainlit(text: str) -> str:
+    """
+    - Converts LaTeX to plain math
+    - Moves equations into code blocks
+    - Fixes bullet formatting
+    """
+
+    text = latex_to_plain_math(text)
+
+    # Lift equations into fenced code blocks
+    equation_pattern = re.compile(
+        r"\(([^()]*log[^()]*)\)"
+    )
+
+    def eq_replacer(match):
+        expr = match.group(1).strip()
+        return f"\n\nFormula:\n```\n{expr}\n```\n"
+
+    text = equation_pattern.sub(eq_replacer, text)
+
+    # Fix bullet rendering (Chainlit markdown rule)
+    text = re.sub(r"\n([\-•*])", r"\n\n\1", text)
+
+    return text.strip()
+
+# =========================
+# CHAT AGENT
+# =========================
+
+def chat_agent(context: str, query: str) -> str:
+    """
+    Normal chatbot mode.
+    Uses full document as context.
+    Single LLM call.
+    """
+    llm = get_llm()
+
+    prompt = CHAT_PROMPT.format(
+        context=context,
+        question=query,
+    )
+
+    response = llm.invoke(prompt)
+    return normalize_output_for_chainlit(response.content.strip())
+
+
+# =========================
+# SUMMARIZE AGENT
+# =========================
+def summarize_agent(text: str) -> str:
+    llm = get_llm()
+    prompt = SUMMARY_PROMPT.format(text=text)
+    raw = llm.invoke(prompt).content.strip()
+
+    # ✅ MINIMAL UI FIX
+    return normalize_output_for_chainlit(raw)
+
+# =========================
+# CLAIM EXTRACTION (FULL DOCUMENT)
+# =========================
+
+def extract_claims_agent(text: str, max_claims: int = 5) -> List[str]:
+    llm = get_llm()
+    prompt = CLAIM_EXTRACTION_PROMPT.format(
+        text=text,
+        max_claims=max_claims,
+    )
+
+    response = llm.invoke(prompt).content.strip()
+
+    claims = []
+    for line in response.split("\n"):
+        line = line.strip("- ").strip()
+        if line:
+            claims.append(line)
+
+    return claims[:max_claims]
+
+
+# =========================
+# EXTERNAL VERIFICATION AGENT (NEW)
+# =========================
+
+def verify_claims_agent(claims: List[str]) -> List[dict]:
+    """
+    External-only verification using Perplexity search.
+    Returns structured JSON per claim.
+    """
+    llm = get_llm()
+    results = []
+
+    for claim in claims:
+        prompt = EXTERNAL_VERIFICATION_PROMPT.format(claim=claim)
+
+        response = llm.invoke(prompt)
+
+        # Perplexity returns citations in additional_kwargs
+        citations = response.additional_kwargs.get("citations", [])
+
+        results.append({
+            "claim": claim,
+            "sources": citations,
+            "verdict": response.content.strip()
+        })
+
+    formatted = []
+
+    for item in results:
+        block = f"""
+    ### Claim
+    {item['claim']}
+
+    ### Verdict
+    **{item['verdict']}**
+
+    ### Sources
+    """
+        if item["sources"]:
+            for src in item["sources"]:
+                block += f"- {src}\n"
+        else:
+            block += "- No external sources found\n"
+
+        formatted.append(block.strip())
+
+    return "\n\n---\n\n".join(formatted)
