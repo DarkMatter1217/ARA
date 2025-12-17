@@ -49,19 +49,33 @@ DOCUMENT:
 # =========================
 # CLAIM EXTRACTION PROMPT
 # =========================
-
 CLAIM_EXTRACTION_PROMPT = """
-Extract at most {max_claims} GLOBAL, document-level factual claims.
+You are an expert scientific fact-extraction system.
 
-Rules:
-- Atomic and verifiable
-- Self-contained
-- No judgment
+TASK:
+Given the FULL text of a research paper, extract a small set of
+ATOMIC, SELF-CONTAINED, and EXTERNALLY VERIFIABLE CLAIMS.
 
-Return bullet points only.
+STRICT REQUIREMENTS (MANDATORY):
+- Each claim must be fully self-contained.
+- Do NOT use pronouns such as: this, they, it, their, the paper.
+- Each claim must explicitly name the subject (e.g., "The authors", "The study").
+- Each claim must include the method, result, and condition where applicable.
+- Claims must be verifiable using external sources alone.
+- Do NOT summarize.
+- Extract factual claims only.
+- Maximum {max_claims} claims.
 
-DOCUMENT:
+DOCUMENT TEXT:
 {text}
+
+OUTPUT FORMAT (STRICT JSON ONLY):
+{{
+  "claims": [
+    "Claim 1 ...",
+    "Claim 2 ..."
+  ]
+}}
 """
 
 

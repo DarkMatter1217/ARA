@@ -1,5 +1,11 @@
-/* Disable outer page scrolling */
+/* Disable outer page scroll */
 html, body {
   height: 100%;
-  overflow: hidden;
+  overflow: hidden !important;
+}
+
+/* Ensure only chat area scrolls */
+.cl-chat {
+  height: 100vh;
+  overflow-y: auto !important;
 }

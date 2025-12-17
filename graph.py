@@ -66,11 +66,31 @@ def build_verify_graph():
         return {
             "claims": extract_claims_agent(state["raw_text"])
         }
-
     def verify_node(state: GraphState):
+        items = verify_claims_agent(state["claims"])
+
+        blocks = []
+        for item in items:
+            block = (
+                f"### Claim\n"
+                f"{item['claim']}\n\n"
+                f"### Verdict\n"
+                f"**{item['verdict']}**\n\n"
+                f"### Sources\n"
+            )
+
+            if item["sources"]:
+                for src in item["sources"]:
+                    block += f"- {src}\n"
+            else:
+                block += "- No external sources found\n"
+
+            blocks.append(block.strip())
+
         return {
-            "final_answer": verify_claims_agent(state["claims"])
+            "final_answer": "\n\n---\n\n".join(blocks)
         }
+
 
     graph.add_node("extract_claims", extract_node)
     graph.add_node("verify_claims", verify_node)

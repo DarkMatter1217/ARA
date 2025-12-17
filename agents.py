@@ -46,15 +46,8 @@ def normalize_output_for_chainlit(text: str) -> str:
     text = latex_to_plain_math(text)
 
     # Lift equations into fenced code blocks
-    equation_pattern = re.compile(
-        r"\(([^()]*log[^()]*)\)"
-    )
-
-    def eq_replacer(match):
-        expr = match.group(1).strip()
-        return f"\n\nFormula:\n```\n{expr}\n```\n"
-
-    text = equation_pattern.sub(eq_replacer, text)
+    
+    text = latex_to_plain_math(text)
 
     # Fix bullet rendering (Chainlit markdown rule)
     text = re.sub(r"\n([\-•*])", r"\n\n\1", text)
@@ -96,9 +89,11 @@ def summarize_agent(text: str) -> str:
 # =========================
 # CLAIM EXTRACTION (FULL DOCUMENT)
 # =========================
+import json
 
 def extract_claims_agent(text: str, max_claims: int = 5) -> List[str]:
     llm = get_llm()
+
     prompt = CLAIM_EXTRACTION_PROMPT.format(
         text=text,
         max_claims=max_claims,
@@ -106,11 +101,16 @@ def extract_claims_agent(text: str, max_claims: int = 5) -> List[str]:
 
     response = llm.invoke(prompt).content.strip()
 
-    claims = []
-    for line in response.split("\n"):
-        line = line.strip("- ").strip()
-        if line:
-            claims.append(line)
+    try:
+        data = json.loads(response)
+        claims = data.get("claims", [])
+    except Exception as e:
+        raise ValueError(
+            f"Claim extraction failed. Expected JSON but got:\n{response}"
+        )
+
+    if not isinstance(claims, list):
+        raise ValueError("Claims must be a list of strings.")
 
     return claims[:max_claims]
 
@@ -134,11 +134,25 @@ def verify_claims_agent(claims: List[str]) -> List[dict]:
 
         # Perplexity returns citations in additional_kwargs
         citations = response.additional_kwargs.get("citations", [])
+        raw = response.content.strip().upper()
 
+        if "SUPPORTED" in raw:
+            verdict = "SUPPORTED"
+        elif "CONTRADICTED" in raw:
+            verdict = "CONTRADICTED"
+        else:
+            verdict = "INSUFFICIENT"
+        clean_sources = []
+
+        for c in citations:
+            if isinstance(c, str):
+                clean_sources.append(c)
+            elif isinstance(c, dict) and "url" in c:
+                clean_sources.append(c["url"])
         results.append({
             "claim": claim,
             "sources": citations,
-            "verdict": response.content.strip()
+            "verdict": verdict
         })
 
     formatted = []
@@ -161,4 +175,4 @@ def verify_claims_agent(claims: List[str]) -> List[dict]:
 
         formatted.append(block.strip())
 
-    return "\n\n---\n\n".join(formatted)
+    return results
