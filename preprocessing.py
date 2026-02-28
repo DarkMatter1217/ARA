@@ -1,5 +1,3 @@
-# preprocessing.py
-
 import os
 import pickle
 import re
@@ -10,34 +8,19 @@ from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-# -------------------------
-# Config
-# -------------------------
-
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
 OUTPUT_DIR = "data/faiss_index"
 INDEX_PATH = os.path.join(OUTPUT_DIR, "index.faiss")
 DOCSTORE_PATH = os.path.join(OUTPUT_DIR, "docstore.pkl")
 
 
-# -------------------------
-# Text Normalization (CRITICAL)
-# -------------------------
-
 def normalize_text(text: str) -> str:
-    """
-    Cleans PDF-extracted text for downstream use.
-    """
-    text = re.sub(r"-\n", "", text)          # fix hyphenated line breaks
-    text = re.sub(r"\n{2,}", "\n\n", text)   # collapse excessive newlines
-    text = re.sub(r"[ \t]+", " ", text)      # normalize spaces
-    text = re.sub(r"\n ", "\n", text)        # trim line-leading spaces
+    text = re.sub(r"-\n", "", text)
+    text = re.sub(r"\n{2,}", "\n\n", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n ", "\n", text)
     return text.strip()
 
-
-# -------------------------
-# Chunking
-# -------------------------
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
     splitter = RecursiveCharacterTextSplitter(
@@ -46,10 +29,6 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
     )
     return splitter.split_text(text)
 
-
-# -------------------------
-# FAISS
-# -------------------------
 
 def build_faiss_index(chunks: List[str]):
     model = SentenceTransformer(EMBEDDING_MODEL_NAME)
@@ -75,10 +54,6 @@ def save_artifacts(index, chunks: List[str]):
     with open(DOCSTORE_PATH, "wb") as f:
         pickle.dump(chunks, f)
 
-
-# -------------------------
-# Public API
-# -------------------------
 
 def run_preprocessing(raw_text: str):
     print("[Preprocessing] Normalizing text...")

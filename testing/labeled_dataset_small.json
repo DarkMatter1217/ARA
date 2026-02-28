@@ -1,0 +1,50 @@
+[
+  {
+    "claim_id": "doc_016_3",
+    "doc_id": "doc_016",
+    "claim": "The study performed walk-forward validation with a 4-year training window, a 2-year validation window, a 1-year step size, and a 30-day embargo, generating nine sequential train/validation splits per asset covering validation periods 2014\u20132024.",
+    "ground_truth": "INSUFFICIENT",
+    "sources": [
+      "https://en.wikipedia.org/wiki/Purged_cross-validation",
+      "https://www.emergentmind.com/topics/walk-forward-validation-strategy",
+      "https://www.kaggle.com/code/justozner/time-series-using-walk-forward-validation"
+    ]
+  },
+  {
+    "claim_id": "doc_005_2",
+    "doc_id": "doc_005",
+    "claim": "The authors found overwhelming evidence of non-identifiability: multiple circuits perfectly replicated model behavior, multiple interpretations existed for a given circuit, several algorithms were perfectly causally aligned with the neural computation, and a single algorithm was causally aligned with different subspaces of the network.",
+    "ground_truth": "SUPPORTED",
+    "sources": [
+      "https://arxiv.org/abs/2502.20914",
+      "https://openreview.net/forum?id=5IWJBStfU7"
+    ]
+  },
+  {
+    "claim_id": "doc_038_3",
+    "doc_id": "doc_038",
+    "claim": "The authors fine-tune the VIRAL model using a Mixture-of-Experts LoRA (MoE-LoRA) adapter with four experts (rank 64, top-2 routing) applied to the feed-forward network output projection, and standard LoRA (rank 64) applied to the attention query, key, and value layers.",
+    "ground_truth": "INSUFFICIENT",
+    "sources": [
+      "No indexed academic or reliable publicly searchable source found describing exactly this VIRAL + MoE-LoRA configuration"
+    ]
+  },
+  {
+    "claim_id": "doc_033_4",
+    "doc_id": "doc_033",
+    "claim": "The authors conducted an anonymous survey of the 26 students enrolled in the course (19 responded) and found that 32 % of respondents reported the course had a \"good extent\" of influence on their academic or career plans, while another 32 % reported influence \"to a great extent\".",
+    "ground_truth": "INSUFFICIENT",
+    "sources": [
+      "No indexed academic or institutional survey matching these specific numbers was found during web search"
+    ]
+  },
+  {
+    "claim_id": "doc_030_5",
+    "doc_id": "doc_030",
+    "claim": "The authors demonstrate that increasing the number of servers from two to four leads to a monotonic increase in client-selection conflict count for all evaluated algorithms, but RL-CRP consistently yields fewer conflicts than ENSAC and FedAvg.",
+    "ground_truth": "INSUFFICIENT",
+    "sources": [
+      "No indexed academic or reputable publication found that directly reports this federated learning comparison"
+    ]
+  }
+]

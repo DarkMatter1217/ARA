@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict
+from typing import TypedDict, List
 from langgraph.graph import StateGraph, END
 
 def compute_document_trust_score(
@@ -11,7 +11,6 @@ def compute_document_trust_score(
 
     base = sum(claim_confidences) / len(claim_confidences)
 
-    # Verdict penalty
     if doc_verdict == "REJECTED":
         verdict_penalty = 30
     elif doc_verdict == "MANUAL_CHECK":
@@ -19,7 +18,6 @@ def compute_document_trust_score(
     else:
         verdict_penalty = 0
 
-    # Contradiction penalty
     contradiction_penalty = contradicted_count * 15
 
     score = base - verdict_penalty - contradiction_penalty
@@ -27,15 +25,13 @@ def compute_document_trust_score(
     return max(0, min(100, int(round(score))))
 
 def compute_claim_confidence(verdict: str, evidence_strength: str, source_count: int) -> int:
-    # Base score from verdict
     if verdict == "SUPPORTED":
         base = 70
     elif verdict == "INSUFFICIENT":
         base = 40
-    else:  # CONTRADICTED
+    else:
         base = 10
 
-    # Evidence bonus
     if evidence_strength == "HIGH":
         bonus = 20
     elif evidence_strength == "MEDIUM":
@@ -45,17 +41,12 @@ def compute_claim_confidence(verdict: str, evidence_strength: str, source_count:
     else:
         bonus = 0
 
-    # Source count bonus (max 10)
     source_bonus = min(10, source_count * 5)
 
     return min(100, base + bonus + source_bonus)
 
 
 def aggregate_document_verdict(items):
-    """
-    Deterministically aggregates claim-level verdicts
-    into a document-level verdict.
-    """
     verdicts = [item["verdict"] for item in items]
 
     if "CONTRADICTED" in verdicts:
@@ -82,10 +73,6 @@ class GraphState(TypedDict):
     final_answer: object
 
 
-# =========================
-# CHAT GRAPH
-# =========================
-
 def build_chat_graph():
     graph = StateGraph(GraphState)
 
@@ -103,10 +90,6 @@ def build_chat_graph():
     return graph.compile()
 
 
-# =========================
-# SUMMARIZE GRAPH
-# =========================
-
 def build_summarize_graph():
     graph = StateGraph(GraphState)
 
@@ -121,10 +104,6 @@ def build_summarize_graph():
     return graph.compile()
 
 
-# =========================
-# VERIFY GRAPH (EXTERNAL ONLY)
-# =========================
-
 def build_verify_graph():
     graph = StateGraph(GraphState)
 
@@ -132,29 +111,16 @@ def build_verify_graph():
         return {
             "claims": extract_claims_agent(state["raw_text"])
         }
+    
     def verify_node(state: GraphState):
         items = verify_claims_agent(state["claims"])
 
-        # --- Document-level aggregation ---
         doc_verdict = aggregate_document_verdict(items)
 
-        # Count stats
         supported = sum(1 for i in items if i["verdict"] == "SUPPORTED")
         insufficient = sum(1 for i in items if i["verdict"] == "INSUFFICIENT")
         contradicted = sum(1 for i in items if i["verdict"] == "CONTRADICTED")
 
-        # --- Document verdict block ---
-        header = (
-            f"## 📄 Document Verification Result\n"
-            f"**{doc_verdict}**\n\n"
-            f"**Document Trust Score:** {trust_score} / 100\n\n"
-            f"**Summary:**\n"
-            f"- Supported claims: {supported}\n"
-            f"- Insufficient claims: {insufficient}\n"
-            f"- Contradicted claims: {contradicted}\n"
-        )
-
-        # --- Claim-level blocks ---
         blocks = []
         claim_confidences = []
 
@@ -172,17 +138,17 @@ def build_verify_graph():
                 for src in item["sources"]:
                     block += (
                         f"- {src['url']} "
-                        f"({src['quality']} – {src['reason']})\n"
+                        f"({src['quality']})\n"
                     )
                     strengths.append(src["quality"])
 
-                # Evidence strength summary
                 if "HIGH" in strengths:
                     strength = "HIGH"
                 elif "MEDIUM" in strengths:
                     strength = "MEDIUM"
                 else:
                     strength = "LOW"
+
                 confidence = compute_claim_confidence(
                     verdict=item["verdict"],
                     evidence_strength=strength,
@@ -190,18 +156,30 @@ def build_verify_graph():
                 )
                 claim_confidences.append(confidence)
 
-
                 block += f"\n**Evidence Strength:** {strength}\n"
+                block += f"\n**Claim Confidence:** {confidence}%\n"
             else:
                 block += "- No external sources found\n"
                 block += "\n**Evidence Strength:** NONE\n"
-                block += f"\n**Claim Confidence:** {confidence}%\n"
+                block += "\n**Claim Confidence:** 0%\n"
+                claim_confidences.append(0)
 
             blocks.append(block.strip())
+
         trust_score = compute_document_trust_score(
             claim_confidences=claim_confidences,
             doc_verdict=doc_verdict,
             contradicted_count=contradicted
+        )
+
+        header = (
+            f"## 📄 Document Verification Result\n"
+            f"**{doc_verdict}**\n\n"
+            f"**Document Trust Score:** {trust_score} / 100\n\n"
+            f"**Summary:**\n"
+            f"- Supported claims: {supported}\n"
+            f"- Insufficient claims: {insufficient}\n"
+            f"- Contradicted claims: {contradicted}\n"
         )
 
         final_output = header + "\n\n---\n\n" + "\n\n---\n\n".join(blocks)

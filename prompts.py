@@ -1,9 +1,3 @@
-# prompts.py
-
-# =========================
-# CHAT PROMPT
-# =========================
-
 CHAT_PROMPT = """
 You are a research assistant.
 
@@ -19,9 +13,6 @@ QUESTION:
 """
 
 
-# =========================
-# SUMMARY PROMPT
-# =========================
 SUMMARY_PROMPT = """
 You are a scientific summarization system.
 
@@ -46,11 +37,8 @@ DOCUMENT:
 """
 
 
-# =========================
-# CLAIM EXTRACTION PROMPT
-# =========================
 CLAIM_EXTRACTION_PROMPT = """
-You are an expert scientific fact-extraction system.
+You are an expert scientific fact-extraction system.`
 
 TASK:
 Given the FULL text of a research paper, extract a small set of
@@ -78,10 +66,6 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 }}
 """
 
-
-# =========================
-# EXTERNAL VERIFICATION PROMPT
-# =========================
 
 EXTERNAL_VERIFICATION_PROMPT = """
 You are an external factual verification system.

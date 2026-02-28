@@ -1,0 +1,155 @@
+import csv
+import json
+import os
+from datetime import datetime
+
+from agents import verify_claims_agent
+from tools import document_vector_search
+from llm import get_llm
+
+INPUT_FILE = "testing/labeled_dataset_clean.json"
+OUTPUT_FILE = "testing/evaluation/experiment_results.csv"
+
+
+# -----------------------------------------
+# Baseline RAG
+# -----------------------------------------
+def baseline_rag_verifier(claim):
+
+    chunks = document_vector_search(claim, top_k=5)
+    context = "\n\n".join(chunks)
+    prompt = f"""
+Claim:
+{claim}
+
+Context:
+{context}
+
+Classify strictly as:
+SUPPORTED
+CONTRADICTED
+INSUFFICIENT
+
+Return ONLY the label.
+"""
+
+    llm = get_llm("verification")
+    response = llm.invoke(prompt)
+
+    verdict_raw = response.content.strip().upper()
+
+    if "SUPPORTED" in verdict_raw:
+        return "SUPPORTED"
+    elif "CONTRADICTED" in verdict_raw:
+        return "CONTRADICTED"
+    else:
+        return "INSUFFICIENT"
+
+
+# -----------------------------------------
+# Confidence (aligned with graph.py)
+# -----------------------------------------
+def compute_claim_confidence(verdict, sources):
+
+    if verdict == "SUPPORTED":
+        base = 70
+    elif verdict == "INSUFFICIENT":
+        base = 40
+    else:
+        base = 10
+
+    if not sources:
+        return 0
+
+    strengths = [s["quality"] for s in sources]
+
+    if "HIGH" in strengths:
+        bonus = 20
+    elif "MEDIUM" in strengths:
+        bonus = 10
+    else:
+        bonus = 5
+
+    source_bonus = min(10, len(sources) * 5)
+
+    return min(100, base + bonus + source_bonus)
+
+
+# -----------------------------------------
+# Safe + Resumeable Experiment Runner
+# -----------------------------------------
+def run_experiment(run_id=None, model_config="full_ara", limit=None):
+
+    if run_id is None:
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    with open(INPUT_FILE, "r", encoding="utf-8") as f:
+        dataset = json.load(f)
+    if limit is not None:
+        dataset = dataset[:limit]
+
+    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+
+    # Load existing rows to avoid duplicates
+    existing_rows = []
+    if os.path.exists(OUTPUT_FILE):
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            existing_rows = list(reader)
+
+    existing_keys = {
+        (row["claim_id"], row["model_config"])
+        for row in existing_rows
+    }
+
+    for idx, item in enumerate(dataset):
+
+        claim_id = item["claim_id"]
+        doc_id = item["doc_id"]
+        claim = item["claim"]
+        gt = item["ground_truth"]
+        key = (claim_id, model_config)
+
+        if key in existing_keys:
+            print(f"Skipping {claim_id} (already computed)")
+            continue
+
+        print(f"[{idx+1}/{len(dataset)}] Processing {claim_id}")
+
+        try:
+
+            if model_config == "baseline_rag":
+                verdict = baseline_rag_verifier(claim)
+                sources = []
+            else:
+                output = verify_claims_agent([claim])[0]
+                verdict = output["verdict"]
+                sources = output["sources"]
+
+            confidence = compute_claim_confidence(verdict, sources)
+
+            row = {
+                "claim_id": claim_id,
+                "doc_id": doc_id,
+                "ground_truth": gt,
+                "predicted_label": verdict,
+                "confidence": confidence / 100.0,
+                "model_config": model_config,
+                "run_id": run_id,
+            }
+
+            # Incremental crash-safe write
+            write_header = not os.path.exists(OUTPUT_FILE) or os.path.getsize(OUTPUT_FILE) == 0
+
+            with open(OUTPUT_FILE, "a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=row.keys())
+                if write_header:
+                    writer.writeheader()
+                writer.writerow(row)
+
+        except Exception as e:
+            print(f"ERROR on {claim_id}: {e}")
+            continue
+
+    print("\nExperiment completed.")
+    print(f"Run ID: {run_id}")

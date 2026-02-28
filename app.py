@@ -1,6 +1,6 @@
 import chainlit as cl
 import pdfplumber
-import asyncio  # ✅ ADDED (minimal)
+import asyncio
 
 from graph import (
     build_chat_graph,
@@ -10,18 +10,10 @@ from graph import (
 from preprocessing import run_preprocessing
 
 
-# =========================
-# BUILD GRAPHS ONCE
-# =========================
-
 chat_graph = build_chat_graph()
 summarize_graph = build_summarize_graph()
 verify_graph = build_verify_graph()
 
-
-# =========================
-# CHAT START
-# =========================
 
 @cl.on_chat_start
 async def on_chat_start():
@@ -67,7 +59,7 @@ async def on_chat_start():
 
     cl.user_session.set("document_text", raw_text)
     cl.user_session.set("doc_ready", True)
-    cl.user_session.set("busy", False)  # ✅ ADDED
+    cl.user_session.set("busy", False)
 
     await cl.Message(
         content="✅ Document processed successfully."
@@ -75,10 +67,6 @@ async def on_chat_start():
 
     await show_mode_buttons()
 
-
-# =========================
-# MODE BUTTONS
-# =========================
 
 async def show_mode_buttons():
     actions = [
@@ -93,10 +81,6 @@ async def show_mode_buttons():
     ).send()
 
 
-# =========================
-# MODE CALLBACKS
-# =========================
-
 @cl.action_callback("chat")
 async def chat_mode(_):
     cl.user_session.set("mode", "chat")
@@ -107,7 +91,7 @@ async def chat_mode(_):
 
 @cl.action_callback("summarize")
 async def summarize_mode(_):
-    if cl.user_session.get("busy"):   # ✅ ADDED GUARD
+    if cl.user_session.get("busy"):
         return
 
     cl.user_session.set("busy", True)
@@ -119,7 +103,7 @@ async def summarize_mode(_):
 
     raw_text = cl.user_session.get("document_text")
 
-    result = await asyncio.to_thread(   # ✅ FIXED
+    result = await asyncio.to_thread(
         summarize_graph.invoke,
         {"raw_text": raw_text}
     )
@@ -128,12 +112,12 @@ async def summarize_mode(_):
         content=result.get("final_answer", "No summary generated.")
     ).send()
 
-    cl.user_session.set("busy", False)  # ✅ ADDED
+    cl.user_session.set("busy", False)
 
 
 @cl.action_callback("verify")
 async def verify_mode(_):
-    if cl.user_session.get("busy"):   # ✅ ADDED GUARD
+    if cl.user_session.get("busy"):
         return
 
     cl.user_session.set("busy", True)
@@ -145,7 +129,7 @@ async def verify_mode(_):
 
     raw_text = cl.user_session.get("document_text")
 
-    result = await asyncio.to_thread(   # ✅ FIXED
+    result = await asyncio.to_thread(
         verify_graph.invoke,
         {"raw_text": raw_text}
     )
@@ -154,12 +138,8 @@ async def verify_mode(_):
         content=result.get("final_answer", "No verification result.")
     ).send()
 
-    cl.user_session.set("busy", False)  # ✅ ADDED
+    cl.user_session.set("busy", False)
 
-
-# =========================
-# CHAT HANDLER (CHAT MODE ONLY)
-# =========================
 
 @cl.on_message
 async def handle_message(message: cl.Message):
