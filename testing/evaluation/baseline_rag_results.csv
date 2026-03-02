@@ -1,0 +1,4 @@
+claim_id,doc_id,ground_truth,predicted_label,confidence,model_config,run_id
+doc_016_3,doc_016,INSUFFICIENT,SUPPORTED,0.0,baseline_rag,20260302_232059
+doc_005_2,doc_005,SUPPORTED,SUPPORTED,0.0,baseline_rag,20260302_232059
+doc_038_3,doc_038,INSUFFICIENT,SUPPORTED,0.0,baseline_rag,20260302_232059

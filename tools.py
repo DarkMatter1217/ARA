@@ -78,10 +78,12 @@ if not TAVILY_API_KEY:
 
 _tavily = TavilyClient(api_key=TAVILY_API_KEY)
 
-EVIDENCE_DIR = "data/evidence_faiss"
-EVIDENCE_INDEX_PATH = os.path.join(EVIDENCE_DIR, "index.faiss")
-EVIDENCE_DOCSTORE_PATH = os.path.join(EVIDENCE_DIR, "docstore.pkl")
-
+# -------------------------------
+# ARA Evidence FAISS (separate)
+# -------------------------------
+ARA_EVIDENCE_DIR = "data/ara_evidence_faiss"
+ARA_EVIDENCE_INDEX_PATH = os.path.join(ARA_EVIDENCE_DIR, "index.faiss")
+ARA_EVIDENCE_DOCSTORE_PATH = os.path.join(ARA_EVIDENCE_DIR, "docstore.pkl")
 
 def classify_quality(url: str):
     u = url.lower()
@@ -106,15 +108,14 @@ def tavily_search(query: str, max_results: int = 5):
 
     return results
 
-
 def init_or_load_evidence_store():
-    os.makedirs(EVIDENCE_DIR, exist_ok=True)
+    os.makedirs(ARA_EVIDENCE_DIR, exist_ok=True)
 
     model = _load_embedding_model()
 
-    if os.path.exists(EVIDENCE_INDEX_PATH):
-        index = faiss.read_index(EVIDENCE_INDEX_PATH)
-        with open(EVIDENCE_DOCSTORE_PATH, "rb") as f:
+    if os.path.exists(ARA_EVIDENCE_INDEX_PATH):
+        index = faiss.read_index(ARA_EVIDENCE_INDEX_PATH)
+        with open(ARA_EVIDENCE_DOCSTORE_PATH, "rb") as f:
             docstore = pickle.load(f)
     else:
         dim = model.get_sentence_embedding_dimension()
@@ -125,8 +126,8 @@ def init_or_load_evidence_store():
 
 
 def save_evidence_store(index, docstore):
-    faiss.write_index(index, EVIDENCE_INDEX_PATH)
-    with open(EVIDENCE_DOCSTORE_PATH, "wb") as f:
+    faiss.write_index(index, ARA_EVIDENCE_INDEX_PATH)
+    with open(ARA_EVIDENCE_DOCSTORE_PATH, "wb") as f:
         pickle.dump(docstore, f)
 
 
@@ -203,3 +204,8 @@ def document_vector_search(query: str, top_k: int = 5):
     store = load_document_vector_store()
     docs = store.similarity_search(query, k=top_k)
     return [doc.page_content for doc in docs]
+
+def reset_evidence_store():
+    import shutil
+    if os.path.exists(ARA_EVIDENCE_DIR):
+        shutil.rmtree(ARA_EVIDENCE_DIR)

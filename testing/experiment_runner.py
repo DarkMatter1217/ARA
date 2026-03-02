@@ -8,7 +8,7 @@ from tools import document_vector_search
 from llm import get_llm
 
 INPUT_FILE = "testing/labeled_dataset_clean.json"
-OUTPUT_FILE = "testing/evaluation/experiment_results.csv"
+
 
 
 # -----------------------------------------
@@ -82,11 +82,24 @@ def run_experiment(run_id=None, model_config="full_ara", limit=None):
 
     if run_id is None:
         run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
+# -----------------------------------------
+# ARA Source Dump File (ONLY for ARA)
+# -----------------------------------------
+    if model_config == "full_ara":
+        SOURCE_DUMP_FILE = "testing/evaluation/ara_sources_dump.csv"
+    else:
+        SOURCE_DUMP_FILE = None
     with open(INPUT_FILE, "r", encoding="utf-8") as f:
         dataset = json.load(f)
     if limit is not None:
         dataset = dataset[:limit]
+    # -----------------------------------------
+    # Separate Output Files
+    # -----------------------------------------
+    if model_config == "baseline_rag":
+        OUTPUT_FILE = "testing/evaluation/baseline_rag_results.csv"
+    else:
+        OUTPUT_FILE = "testing/evaluation/ara_results.csv"
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
@@ -146,7 +159,33 @@ def run_experiment(run_id=None, model_config="full_ara", limit=None):
                 if write_header:
                     writer.writeheader()
                 writer.writerow(row)
+            # -----------------------------------------
+            # Dump Extracted Sources (ARA only)
+            # -----------------------------------------
+            if model_config == "full_ara" and sources:
 
+                source_write_header = (
+                    not os.path.exists(SOURCE_DUMP_FILE)
+                    or os.path.getsize(SOURCE_DUMP_FILE) == 0
+                )
+
+                for src in sources:
+                    source_row = {
+                        "claim_id": claim_id,
+                        "doc_id": doc_id,
+                        "claim": claim,
+                        "verdict": verdict,
+                        "source_url": src.get("url"),
+                        "source_quality": src.get("quality"),
+                        "run_id": run_id,
+                    }
+
+                    with open(SOURCE_DUMP_FILE, "a", newline="", encoding="utf-8") as sf:
+                        writer = csv.DictWriter(sf, fieldnames=source_row.keys())
+                        if source_write_header:
+                            writer.writeheader()
+                            source_write_header = False
+                        writer.writerow(source_row)# Optional: Dump sources for ARA
         except Exception as e:
             print(f"ERROR on {claim_id}: {e}")
             continue

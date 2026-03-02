@@ -6,7 +6,7 @@ from prompts import (
     CLAIM_EXTRACTION_PROMPT,
     EXTERNAL_VERIFICATION_PROMPT,
 )
-from tools import vector_search
+from tools import reset_evidence_store, vector_search
 import re
 
 def classify_source_quality(url: str) -> tuple[str, str]:
@@ -142,7 +142,8 @@ def verify_claims_agent(claims: List[str]) -> List[dict]:
     results = []
 
     for claim in claims:
-
+        from tools import reset_evidence_store
+        reset_evidence_store()
         # Step 1 — Generate Search Queries
         query_prompt = f"""
 Generate 3 precise search queries to verify this claim.
@@ -164,10 +165,16 @@ Return JSON:
 
         # Step 2 — Tavily Retrieval
         all_sources = []
+        seen_urls = set()
+
         for q in queries:
             sources = tavily_search(q)
-            all_sources.extend(sources)
 
+            for s in sources:
+                url = s.get("url")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    all_sources.append(s)
         if all_sources:
             add_sources_to_evidence_store(all_sources)
 
