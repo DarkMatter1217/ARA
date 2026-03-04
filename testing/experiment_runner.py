@@ -19,19 +19,29 @@ def baseline_rag_verifier(claim):
     chunks = document_vector_search(claim, top_k=5)
     context = "\n\n".join(chunks)
     prompt = f"""
-Claim:
-{claim}
+    You are a careful fact-checking system.
 
-Context:
-{context}
+    Claim:
+    {claim}
 
-Classify strictly as:
-SUPPORTED
-CONTRADICTED
-INSUFFICIENT
+    Context:
+    {context}
 
-Return ONLY the label.
-"""
+    Decision Rules:
+
+    SUPPORTED only if:
+    - The context clearly and directly confirms the core factual content of the claim.
+
+    CONTRADICTED only if:
+    - The context clearly and directly refutes the claim.
+
+    When uncertain → choose INSUFFICIENT.
+
+    Return ONLY one label:
+    SUPPORTED
+    CONTRADICTED
+    INSUFFICIENT
+    """
 
     llm = get_llm("verification")
     response = llm.invoke(prompt)
@@ -49,32 +59,61 @@ Return ONLY the label.
 # -----------------------------------------
 # Confidence (aligned with graph.py)
 # -----------------------------------------
-def compute_claim_confidence(verdict, sources):
+import math
+from urllib.parse import urlparse
 
-    if verdict == "SUPPORTED":
-        base = 70
-    elif verdict == "INSUFFICIENT":
-        base = 40
-    else:
-        base = 10
+def compute_claim_confidence(verdict, sources):
 
     if not sources:
         return 0
 
-    strengths = [s["quality"] for s in sources]
+    # -------------------------
+    # 1. Quality Score
+    # -------------------------
+    quality_map = {
+        "HIGH": 1.0,
+        "MEDIUM": 0.7,
+        "LOW": 0.3
+    }
 
-    if "HIGH" in strengths:
-        bonus = 20
-    elif "MEDIUM" in strengths:
-        bonus = 10
-    else:
-        bonus = 5
+    quality_scores = [
+        quality_map.get(s.get("quality", "LOW"), 0.3)
+        for s in sources
+    ]
 
-    source_bonus = min(10, len(sources) * 5)
+    quality_score = sum(quality_scores) / len(quality_scores)
 
-    return min(100, base + bonus + source_bonus)
+    # -------------------------
+    # 2. Quantity Score (log scaled)
+    # -------------------------
+    n = len(sources)
+    quantity_score = min(1.0, math.log(1 + n) / math.log(1 + 8))
 
+    # -------------------------
+    # 3. Domain Diversity Score
+    # -------------------------
+    domains = set()
 
+    for s in sources:
+        try:
+            domain = urlparse(s.get("url", "")).netloc
+            if domain:
+                domains.add(domain)
+        except:
+            continue
+
+    diversity_score = min(1.0, len(domains) / 5)
+
+    # -------------------------
+    # Final Weighted Confidence
+    # -------------------------
+    confidence = (
+        0.5 * quality_score
+        + 0.3 * quantity_score
+        + 0.2 * diversity_score
+    )
+
+    return round(confidence * 100)
 # -----------------------------------------
 # Safe + Resumeable Experiment Runner
 # -----------------------------------------

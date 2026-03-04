@@ -6,9 +6,10 @@ LABELS = ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"]
 
 
 def compute_metrics(model_config=None, run_id=None):
-
-    df = pd.read_csv(INPUT_FILE)
-
+    if model_config =="full_ara":
+        df = pd.read_csv("testing/evaluation/ara_results.csv")
+    else:
+        df=pd.read_csv("testing/evaluation/baseline_rag_results.csv")
     # -----------------------------
     # Filtering
     # -----------------------------

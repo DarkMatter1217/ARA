@@ -69,15 +69,6 @@ def bias_scan(text: str) -> List[str]:
             found.append(kw)
 
     return found
-from tavily import TavilyClient
-import json
-
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-if not TAVILY_API_KEY:
-    raise RuntimeError("TAVILY_API_KEY not set")
-
-_tavily = TavilyClient(api_key=TAVILY_API_KEY)
-
 # -------------------------------
 # ARA Evidence FAISS (separate)
 # -------------------------------
@@ -94,16 +85,30 @@ def classify_quality(url: str):
     return "LOW"
 
 
-def tavily_search(query: str, max_results: int = 5):
-    response = _tavily.search(query=query, max_results=max_results)
+from exa_py import Exa
+
+EXA_API_KEY = os.getenv("EXA_API_KEY")
+if not EXA_API_KEY:
+    raise RuntimeError("EXA_API_KEY not set")
+
+_exa = Exa(EXA_API_KEY)
+
+def exa_search(query: str, max_results: int = 5):
+    response = _exa.search(
+        query,
+        num_results=max_results,
+    )
+
     results = []
 
-    for r in response["results"]:
+    for r in response.results:
+        text = r.text if hasattr(r, "text") and r.text else ""
+
         results.append({
-            "url": r["url"],
-            "title": r["title"],
-            "content": r["content"],
-            "quality": classify_quality(r["url"])
+            "url": r.url,
+            "title": r.title,
+            "content": text,
+            "quality": classify_quality(r.url)
         })
 
     return results

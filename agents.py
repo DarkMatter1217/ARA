@@ -132,7 +132,7 @@ def extract_claims_agent(text: str, max_claims: int = 5) -> List[str]:
 
 def verify_claims_agent(claims: List[str]) -> List[dict]:
     from tools import (
-        tavily_search,
+        exa_search,
         add_sources_to_evidence_store,
         retrieve_evidence_context
     )
@@ -163,34 +163,46 @@ Return JSON:
         except:
             queries = [claim]
 
-        # Step 2 — Tavily Retrieval
+        # Step 2 — Multi-query, multi-source retrieval
         all_sources = []
         seen_urls = set()
 
         for q in queries:
-            sources = tavily_search(q)
+            sources = exa_search(q, max_results=5)  # ensure multi-source per query
 
             for s in sources:
                 url = s.get("url")
                 if url and url not in seen_urls:
                     seen_urls.add(url)
                     all_sources.append(s)
+
+        # Step 3 — Add FULL unified pool to FAISS
         if all_sources:
-            add_sources_to_evidence_store(all_sources)
+            filtered_sources = [
+                s for s in all_sources
+                if s["quality"] in ("HIGH", "MEDIUM")
+            ]
 
+            if filtered_sources:
+                add_sources_to_evidence_store(filtered_sources)
         # Step 3 — Retrieve Relevant Evidence
-        evidence_chunks = retrieve_evidence_context(claim, top_k=5)
-
+        if all_sources:
+            evidence_chunks = retrieve_evidence_context(claim, top_k=5)
+        else:
+            evidence_chunks = []
         formatted_context = ""
-        used_sources = []
 
         for chunk in evidence_chunks:
             formatted_context += f"\nSource: {chunk['url']}\n{chunk['content']}\n"
-            used_sources.append({
-                "url": chunk["url"],
-                "quality": chunk["quality"]
-            })
 
+        # Use full unified source pool for logging + confidence
+        used_sources = [
+            {
+                "url": s["url"],
+                "quality": s["quality"]
+            }
+            for s in all_sources
+        ]
         # Step 4 — Reasoning
         verification_prompt = f"""
         You are a strict scientific fact-checking system.
@@ -201,21 +213,18 @@ Return JSON:
         Evidence:
         {formatted_context}
 
-        Decision Policy (HIGH PRECISION MODE):
+        Decision Policy :
 
         SUPPORTED only if:
-        - At least TWO independent sources agree.
-        - Evidence directly matches key entities, numbers, datasets, or metrics.
-        - There is NO contradicting evidence.
+        - One INDEPENDENT sources directly confirm the claim.
+        - Evidence substantially supports the core factual content of the claim,even if phrasing differs.
 
         CONTRADICTED only if:
         - Reliable evidence directly refutes the claim.
 
-        INSUFFICIENT if:
-        - Evidence is partial.
-        - Only one weak source exists.
-        - Numerical values do not exactly match.
-        - Sources are vague or secondary.
+        INSUFFICIENT only if:
+        - Evidence is partial or ambiguous.
+        - No Evidence Directly Supports or Refutes, but there are related findings that add uncertainty.
         - There is uncertainty.
 
         When uncertain → choose INSUFFICIENT.
