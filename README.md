@@ -2,7 +2,7 @@
 
 ARA checks each factual claim in a document against independently retrieved web evidence, instead of trusting whatever the retriever returns. It is the code behind:
 
-> Singh, P. (2026). "A Claim-Centric Multi-Source Verification Architecture for Reducing Hallucinations in Retrieval-Augmented Generation." *Amity Journal of Computational Sciences*, Vol. 10, Issue 1.
+> Singh, P. (2026). "A Claim-Centric Multi-Source Verification Architecture for Reducing Hallucinations in Retrieval-Augmented Generation." *Amity Journal of Computational Sciences*, Vol. 10, Issue 1. [Read the paper (PDF)](https://img.amizone.net/AzureFileHandler.ashx?FileName=amitywebsite/userfiles/aijem/a30ec572.pdf)
 
 (The project began as "Agentic Research Assistant", which is where the name comes from.)
 
@@ -28,24 +28,25 @@ flowchart LR
 
 ## Results
 
-The evaluation set contains 496 claims extracted from 77 arXiv papers, each labeled SUPPORTED, INSUFFICIENT, or CONTRADICTED based on external evidence (`testing/labeled_dataset_clean.json`). The baseline is a standard RAG verifier that retrieves from a FAISS index of the source papers and uses the same LLM.
+The evaluation set has 496 claims extracted from scientific papers (mostly arXiv), each hand-labeled SUPPORTED, INSUFFICIENT, or CONTRADICTED (`testing/labeled_dataset_clean.json`). The baseline is a standard RAG verifier that retrieves from a FAISS index of the source papers and uses the same LLM.
 
-On the 337 claims that both systems were run on:
+Results from the paper, on all 496 claims:
 
 | Metric | ARA | Baseline RAG |
 |---|---|---|
-| False "supported" rate (unsupported claims labeled SUPPORTED) | **17.9%** (35/196) | 94.9% (186/196) |
-| Recall on truly supported claims | 34.0% (48/141) | 98.6% (139/141) |
-| Accuracy | 60.5% | 43.9% |
+| Unsupported claims labeled SUPPORTED | **56** | 289 |
+| Accuracy | 61.09% | 40.52% |
+| Macro F1 | 0.377 | 0.210 |
 
-Always predicting INSUFFICIENT would score 58.2% accuracy on this set, so accuracy alone is not a useful measure here. The main result is the drop in false "supported" verdicts: ARA rarely confirms a claim the evidence does not back. The cost is that it is conservative and misses many true claims.
+So ARA marks about 80% fewer unsupported claims as supported. The paper reports this as a "hallucination rate" of 11.29% vs 58.27%, which divides by all 496 claims. Divided by the 302 claims that are actually unsupported, it is 18.5% vs 95.7%.
 
-Limitations:
-- The dataset has only 2 CONTRADICTED claims, so these results say nothing about contradiction detection.
+Things to keep in mind:
+- Always predicting INSUFFICIENT would get about 60% accuracy on this set, so accuracy alone says little. The main result is the drop in false "supported" labels.
+- ARA is conservative. It confirms only 65 of the 194 truly supported claims, while the baseline confirms 191.
+- There are only 2 CONTRADICTED claims, so these results say nothing about contradiction detection.
 - The baseline retrieves from the source papers themselves, while ARA searches the open web. The comparison measures the value of independent evidence, not of a better retriever over the same corpus.
-- Only the full ARA configuration has saved results; no ablations are reported.
-
-Raw results are in `testing/evaluation/`.
+- The paper describes Tavily for web search. This code uses Exa.
+- `testing/evaluation/` holds the saved per-claim runs from this repo (389 ARA rows, 496 baseline rows).
 
 ## Setup
 
