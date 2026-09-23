@@ -2,7 +2,7 @@
 
 ARA checks each factual claim in a document against independently retrieved web evidence, instead of trusting whatever the retriever returns. It is the code behind:
 
-> Singh, P. (2026). "A Claim-Centric Multi-Source Verification Architecture for Reducing Hallucinations in Retrieval-Augmented Generation." *Amity Journal of Computational Sciences*, Vol. 10, Issue 1. PAPER_LINK
+> Singh, P. (2026). "A Claim-Centric Multi-Source Verification Architecture for Reducing Hallucinations in Retrieval-Augmented Generation." *Amity Journal of Computational Sciences*, Vol. 10, Issue 1.
 
 (The project began as "Agentic Research Assistant", which is where the name comes from.)
 
