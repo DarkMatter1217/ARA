@@ -10,7 +10,7 @@ ARA checks each factual claim in a document against independently retrieved web 
 
 ```mermaid
 flowchart LR
-    A[Upload PDF / text] --> B[Claim extraction<br/>LLM, up to 5 atomic claims]
+    A[Upload PDF / text] --> B[Claim extraction<br/>LLM pulls out up to 5 claims]
     B --> C[Query generation<br/>3 search queries per claim]
     C --> D[Exa web search<br/>5 results per query, deduplicated]
     D --> E[Source quality tier<br/>HIGH / MEDIUM / LOW]
